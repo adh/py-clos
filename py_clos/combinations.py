@@ -76,3 +76,30 @@ class StandardMethodCombination(MethodCombination):
         return res
             
 STANDARD_METHOD_COMBINATION = StandardMethodCombination()
+
+class ReducingMethodCombination(MethodCombination):
+    __qualifiers__ = ["around"]
+
+    def __init__(self, fun, identity):
+        self.fun = fun
+        self.identity = identity
+
+    def effective_method(self, funs, identity=False):
+        return lambda *args, **kwargs:\
+            self.fun((i(*args, **kwargs) for i in funs))
+        
+    def compute_effective_method(self, methods):
+        qs = self.bin_by_qualifiers(methods)
+
+        if not qs[None]:
+            raise ValueError("No applicable primary methods")
+
+        if len(qs[None]) == 1 and self.identity:
+            res = qs[None][0]
+        else:
+            res = self.effective_method([i.callable for i in qs[None]])
+        
+        if qs["around"]:
+            res = call_chain(qs["around"], res)
+
+        return res

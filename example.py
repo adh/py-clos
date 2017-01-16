@@ -1,4 +1,5 @@
 from py_clos import generic
+from py_clos.combinations import ReducingMethodCombination
 
 class Screen:
     pass
@@ -33,3 +34,13 @@ def display(what: User, where):
 print(display(User(), Screen()))
 print(display(User(), Webpage()))
     
+
+@generic(method_combination=ReducingMethodCombination(", ".join))
+def get_path(e: Entity):
+    return 'entity'
+
+@generic
+def get_path(u: User):
+    return 'user'
+
+print(get_path(User()))
