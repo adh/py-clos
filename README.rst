@@ -13,7 +13,7 @@ Example usage::
   def display(what, where):
       return "{} on {}".format(what, where)
 
-  @generic(qualifiers=["around"])
+  @generic.around
   def display(what, where: Webpage, next_method):
       return "<html>{}</html>".format(next_method(what, where))
 
