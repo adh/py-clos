@@ -8,11 +8,6 @@ import threading
 import inspect
 import warnings
 
-class Registry(dict):
-    def __getitem__(self, name):
-        if name not in self:
-            self[name] = GenericFunction(name)
-        return super().__getitem__(name)
 
 class GenericFunction:
     def __init__(self, name):
@@ -176,9 +171,8 @@ class Method:
             return self.proc(*args, **kwargs)
             
         
-registry = Registry()
 def defgeneric(name, **kwargs):
-    gf = registry[name]
+    gf = GenericFunction(name)
     gf.redefine(**kwargs)
     return gf
 

@@ -1,3 +1,5 @@
+import sys
+
 def common_superclass(*classes):
     mros = (i.mro() for i in classes)
     mro = next(mros)
@@ -18,3 +20,8 @@ def merge_lists(*lists):
 
     return longest
     
+def lookup_object(module, name):
+    if isinstance(module, str):
+        module = sys.modules[module]
+
+    return getattr(module, name)
