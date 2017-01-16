@@ -10,7 +10,7 @@ setup(
     author = "Ales Hakl",
     author_email = "ales@hakl.net",
     description = ("CLOS-style generic functions with annotation based syntax"),
-    long_description=read('README'),
+    long_description=read('README.rst'),
     url="https://github.com/adh/py-clos",
     
     license="MIT",
@@ -19,7 +19,7 @@ setup(
     packages=find_packages(),
     extras_require = {
         "lru": ["lru-dict"],
-    }
+    },
     zip_safe=True,
     classifiers=[
         'Development Status :: 3 - Alpha',
