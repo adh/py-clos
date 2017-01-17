@@ -44,3 +44,4 @@ def get_path(u: User):
     return 'user'
 
 print(get_path(User()))
+
