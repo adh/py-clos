@@ -6,7 +6,7 @@ def read(fname):
 
 setup(
     name="PyCLOS",
-    version="0.1",
+    version="0.2",
     author = "Ales Hakl",
     author_email = "ales@hakl.net",
     description = ("CLOS-style generic functions with annotation based syntax"),
