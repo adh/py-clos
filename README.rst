@@ -1,10 +1,11 @@
 PyCLOS
 ======
 
-PyCLOS implements CLOS-style generic functions for Python 3. Current
-implementation is pure python with optional dependency on C
-implemented lru-dict which gets used for dispatch caches in case of
-specialization on value.
+PyCLOS implements CLOS-style generic functions for
+Python 3. Implementation depends on CPython and uses C extension
+module for reasonable performance, but the core functionality is
+written in pure Python. User code can define both custom specializers
+and custom method combinations.
 
 Example usage::
 
