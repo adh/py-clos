@@ -103,7 +103,6 @@ class GenericFunction(GenericFunctionBase):
             self._methods.append(method)
             self.rebuild_specialized_on()
             self.rebuild_cache_policies()
-            print(self.get_cache_map())
             self.initialize_c_cache()
             self.clear_cache()
 
