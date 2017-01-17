@@ -8,8 +8,17 @@ import threading
 import inspect
 import warnings
 
+try:
+    from ._py_clos import GenericFunction as GenericFunctionBase
+except ImportError:
+    class GenericFunctionBase:
+        def __call__(self, *args, **kwargs):
+            return self.call_slow_path(args, kwargs)
+        def initialize_cache(self, map, size):
+            pass
 
-class GenericFunction:
+    
+class GenericFunction(GenericFunctionBase):
     def __init__(self, name):
         self._name = name
         
@@ -25,14 +34,17 @@ class GenericFunction:
         if method_combination is not None:
             self._method_combination = method_combination
             self.clear_cache()
-        
+
+    def get_cache_size(self):
+        return len(self._methods) * 4
+            
     def clear_cache(self):
         if self._cache_policies is None:
             self._cache = None
         else:
             for i in self._cache_policies:
                 if i != TypeCachePolicy:
-                    self._cache = LRU(len(self._methods) * 4)
+                    self._cache = LRU(self.get_cache_size())
                     return
             self._cache = {}
             # the idea is that number of possible types is clearly bounded
@@ -49,6 +61,7 @@ class GenericFunction:
         self._specialized_on = [idx for idx, i in enumerate(bitmap) if i]
 
     def rebuild_cache_policies(self):
+        arglen = max((len(i.specializers) for i in self._methods))
         spec_count = len(self._specialized_on)
         cps = [[]] * spec_count
         
@@ -67,12 +80,31 @@ class GenericFunction:
                 self._cache_policies = None
 
         self._cache_policies = cps
-        
+
+    def get_cache_map(self):
+        maxlen = max((len(i.specializers) for i in self._methods))
+        key = [b"_"] * maxlen
+        for idx, cp in zip(self._specialized_on, self._cache_policies):
+            if not hasattr(cp, "c_cache_key"):
+                return None
+            key[idx] = cp.c_cache_key
+
+        return b"".join(key).rstrip(b'_')
+
+    def initialize_c_cache(self):
+        cm = self.get_cache_map()
+        if not cm:
+            self.initialize_cache(b"", 0)
+        else:
+            self.initialize_cache(cm, self.get_cache_size())
+    
     def add_method(self, method):
         with self._lock:
             self._methods.append(method)
             self.rebuild_specialized_on()
             self.rebuild_cache_policies()
+            print(self.get_cache_map())
+            self.initialize_c_cache()
             self.clear_cache()
 
     def get_cache_key(self, args):
@@ -82,20 +114,27 @@ class GenericFunction:
     def get_applicable_methods(self, args):
         return sorted((i for i in self._methods if i.matches(args)),
                       key=lambda i: i.sort_key(args))
-    
-    def __call__(self, *args, **kwargs):
+
+    def get_effective_method(self, args):
+        with self._lock:
+            methods = self.get_applicable_methods(args)
+            return self._method_combination.compute_effective_method(methods)
+        
+
+    def call_slow_path(self, args, kwargs={}):
         if self._cache is not None:
             ck = self.get_cache_key(args)
             if ck in self._cache:
                 return self._cache[ck](*args, **kwargs)
 
-        with self._lock:
-            methods = self.get_applicable_methods(args)
-            effective_method = self._method_combination.compute_effective_method(methods)
-            if self._cache is not None:
-                self._cache[ck] = effective_method
+        effective_method = self.get_effective_method(args)
+            
+        if self._cache is not None:
+            self._cache[ck] = effective_method
 
         return effective_method(*args, **kwargs)
+        
+            
         
 class Method:
     __slots__ = ["proc", "specializers", "qualifiers", "next_method_arg"]

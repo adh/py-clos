@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
 import os
 
 def read(fname):
@@ -21,6 +21,9 @@ setup(
         "lru": ["lru-dict"],
     },
     zip_safe=True,
+    ext_modules=[Extension('py_clos._py_clos',
+                           extra_compile_args=['-g'],
+                           sources=["src/py_clos.c"])],
     classifiers=[
         'Development Status :: 3 - Alpha',
 
