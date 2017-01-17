@@ -62,8 +62,8 @@ static void grow_cache(GenericFunction*self){
   for (i = 0; i < self->cache_size; i++){
     for (j = 0; j< new_size; j++){
       CacheEntry* e = self->cache[i];
-      if (new[(e->hash + j)] == NULL){
-        new[(e->hash + j)] = e;
+      if (new[(e->hash + j) % new_size] == NULL){
+        new[(e->hash + j) % new_size] = e;
         break;
       }
     }
@@ -127,9 +127,11 @@ lookup_with_cache(GenericFunction *self, PyObject *args, PyObject *kwds){
   }
   if (self->may_grow){
     grow_cache(self);
-    entry = self->cache[hash % self->cache_size];
-    while (entry->effective_method){
-      entry++;
+    for (i = 0; i < self->cache_size; i++){
+      entry = self->cache[(hash + i) % self->cache_size];
+      if (entry->effective_method == NULL){
+        break;
+      }
     }
   } else {
     entry = self->cache[hash % self->cache_size];
