@@ -80,11 +80,11 @@ STANDARD_METHOD_COMBINATION = StandardMethodCombination()
 class ReducingMethodCombination(MethodCombination):
     __qualifiers__ = ["around"]
 
-    def __init__(self, fun, identity):
+    def __init__(self, fun, identity=False):
         self.fun = fun
         self.identity = identity
 
-    def effective_method(self, funs, identity=False):
+    def effective_method(self, funs):
         return lambda *args, **kwargs:\
             self.fun((i(*args, **kwargs) for i in funs))
         
