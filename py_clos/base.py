@@ -37,7 +37,13 @@ class GenericFunction(GenericFunctionBase):
 
     def get_cache_size(self):
         return len(self._methods) * 4
-            
+
+    def cache_should_grow(self):
+        for i in self._cache_policies:
+            if i != TypeCachePolicy:
+                return False
+        return True
+    
     def clear_cache(self):
         if self._cache_policies is None:
             self._cache = None
@@ -94,9 +100,11 @@ class GenericFunction(GenericFunctionBase):
     def initialize_c_cache(self):
         cm = self.get_cache_map()
         if not cm:
-            self.initialize_cache(b"", 0)
+            self.initialize_cache(b"", 0, False)
         else:
-            self.initialize_cache(cm, self.get_cache_size())
+            self.initialize_cache(cm,
+                                  self.get_cache_size(),
+                                  self.cache_should_grow())
     
     def add_method(self, method):
         with self._lock:

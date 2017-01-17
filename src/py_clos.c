@@ -6,6 +6,7 @@
 
 typedef struct {
   PyObject* effective_method;
+  size_t hash;
   PyObject* keys[]; 
 } CacheEntry;
 
@@ -15,6 +16,7 @@ typedef struct {
   size_t specialized_count;
   size_t cache_size;
   CacheEntry** cache;
+  int may_grow;
 } GenericFunction;
 
 static size_t hash_pointer(void* ptr){
@@ -22,7 +24,7 @@ static size_t hash_pointer(void* ptr){
 }
 
 static size_t hash_combine(size_t a, size_t b){
-  return (a * 17) ^ (b * 11);
+  return (a * 17) + (b * 11);
 }
 
 static PyObject *
@@ -47,9 +49,42 @@ GenericFunction_init(GenericFunction *self, PyObject *args, PyObject *kwds){
 static PyObject* call_slow_path;
 static PyObject* get_effective_method;
 
+static void grow_cache(GenericFunction*self){
+  size_t i;
+  size_t j;
+  size_t new_size = self->cache_size * 2;
+  CacheEntry **new = malloc(sizeof(CacheEntry*) * new_size);
+  
+  for (i = 0; i < new_size; i++){
+    new[i] = NULL;
+  }
+
+  for (i = 0; i < self->cache_size; i++){
+    for (j = 0; j< new_size; j++){
+      CacheEntry* e = self->cache[i];
+      if (new[(e->hash + j)] == NULL){
+        new[(e->hash + j)] = e;
+        break;
+      }
+    }
+  }
+
+  for (i = 0; i < new_size; i++){
+    if (new[i] == NULL){
+      new[i] = malloc(sizeof(CacheEntry) +
+                      sizeof(PyObject*) * self->specialized_count);
+    }
+  }
+
+  free(self->cache);
+  self->cache = new;
+  self->cache_size = new_size;
+}
+
 static PyObject*
 lookup_with_cache(GenericFunction *self, PyObject *args, PyObject *kwds){
   PyObject* keys[self->specialized_count];
+  PyObject* em;
   size_t i;
   Py_ssize_t argcount = PyTuple_GET_SIZE(args);
   size_t hash = 0;
@@ -80,6 +115,7 @@ lookup_with_cache(GenericFunction *self, PyObject *args, PyObject *kwds){
     entry = self->cache[(hash + i) % self->cache_size];
     
     if (entry->effective_method
+        && entry->hash == hash
         && (memcmp(entry->keys, keys,
                    sizeof(PyObject*) * self->specialized_count) == 0)){
       return entry->effective_method;
@@ -89,17 +125,29 @@ lookup_with_cache(GenericFunction *self, PyObject *args, PyObject *kwds){
       goto found_slot;
     }
   }
-  entry = self->cache[hash % self->cache_size];
+  if (self->may_grow){
+    grow_cache(self);
+    entry = self->cache[hash % self->cache_size];
+    while (entry->effective_method){
+      entry++;
+    }
+  } else {
+    entry = self->cache[hash % self->cache_size];
+  }
  found_slot:
   
-  entry->effective_method = PyObject_CallMethodObjArgs(self,
-                                                       get_effective_method,
-                                                       args,
-                                                       NULL);
-  if (entry->effective_method){
+  em = PyObject_CallMethodObjArgs(self,
+                                  get_effective_method,
+                                  args,
+                                  NULL);
+
+  if (em){
+    entry->effective_method = em;
+    entry->hash = hash;
     memcpy(entry->keys, keys, sizeof(PyObject*) * self->specialized_count);
   }
-  return entry->effective_method;
+  
+  return em;
 }
 
 static PyObject*
@@ -139,21 +187,26 @@ GenericFunction_initialize_cache(GenericFunction* self, PyObject* args){
   char* cache_map;
   size_t size;
   size_t i;
+  int may_grow;
+  
 
-
-  if (!PyArg_ParseTuple(args, "yn", &cache_map, &size)){
+  if (!PyArg_ParseTuple(args, "ynp", &cache_map, &size, &may_grow)){
     return NULL;
+  }
+
+  if (self->cache){
+    for (i = 0; i < self->cache_size; i++){
+      free(self->cache[i]);
+    }
+    free(self->cache);
+    self->cache = NULL;
   }
 
   self->specialized_count = strlen(cache_map);
   self->cache_map = strdup(cache_map);
   self->cache_size = size;
-
-  if (self->cache){
-    free(self->cache);
-    self->cache = NULL;
-  }
-
+  self->may_grow = may_grow;
+  
   if (self->cache_size){
     self->cache = malloc(sizeof(CacheEntry*) * self->cache_size);
     for (i = 0; i < self->cache_size; i++){
