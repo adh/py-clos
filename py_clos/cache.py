@@ -8,19 +8,19 @@ class NoCachePolicy:
     pass
     
 class IdentityCachePolicy(NoCachePolicy):
-    @classmethod
-    def get_cache_key(cls, object):
+    @staticmethod
+    def get_cache_key(object):
         return id(object)
 
 
 class InstanceCachePolicy(IdentityCachePolicy):
-    @classmethod
-    def get_cache_key(cls, object):
+    @staticmethod
+    def get_cache_key(object):
         return object
 
 
 class TypeCachePolicy(InstanceCachePolicy):
-    @classmethod
-    def get_cache_key(cls, object):
+    @staticmethod
+    def get_cache_key(object):
         return type(object)
 
