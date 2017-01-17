@@ -89,10 +89,11 @@ lookup_with_cache(GenericFunction *self, PyObject *args, PyObject *kwds){
   Py_ssize_t argcount = PyTuple_GET_SIZE(args);
   size_t hash = 0;
   CacheEntry* entry;
-  
+
   if (argcount < self->specialized_count){
     PyErr_Format(PyExc_TypeError, "Function expects at least \%d arguments (got \%d)",
                  self->specialized_count, argcount);
+    return NULL;
   }
   
   for(i = 0; i < self->specialized_count; i++){
