@@ -145,6 +145,7 @@ lookup_with_cache(GenericFunction *self, PyObject *args, PyObject *kwds){
                                   NULL);
 
   if (em){
+    Py_CLEAR(entry->effective_method);
     entry->effective_method = em;
     entry->hash = hash;
     memcpy(entry->keys, keys, sizeof(PyObject*) * self->specialized_count);
@@ -174,6 +175,7 @@ static void GenericFunction_dealloc(GenericFunction *self){
   
   if (self->cache){
     for (i = 0; i < self->cache_size; i++){
+      Py_CLEAR(self->cache[i]->effective_method);
       free(self->cache[i]);
     }
     free(self->cache);
@@ -199,6 +201,7 @@ GenericFunction_initialize_cache(GenericFunction* self, PyObject* args){
 
   if (self->cache){
     for (i = 0; i < self->cache_size; i++){
+      Py_CLEAR(self->cache[i]->effective_method);
       free(self->cache[i]);
     }
     free(self->cache);
